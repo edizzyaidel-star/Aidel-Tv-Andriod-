@@ -17,7 +17,18 @@ jobs:
       - name: Extract Android project
         run: |
           mkdir -p android-project
-          unzip -o AIDEL-TV-Android-Project-1.zip -d android-project
+          # Support both possible zip names
+          if [ -f AIDEL-TV-Android-Project.zip ]; then
+            unzip -o AIDEL-TV-Android-Project.zip -d android-project
+          elif [ -f AIDEL-TV-Android-Project-1.zip ]; then
+            unzip -o AIDEL-TV-Android-Project-1.zip -d android-project
+          else
+            echo "ERROR: No Android project zip found!"
+            ls -la
+            exit 1
+          fi
+          echo "=== Extracted files ==="
+          find android-project -type f | sort
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -28,27 +39,24 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build APK
+      - name: Make gradlew executable
         run: |
-          # Go into the extracted project
           cd android-project
+          chmod +x gradlew || true
+          ls -l gradlew
 
-          # Find the real project root (in case the zip has a subfolder)
-          if [ -f "gradlew" ]; then
-            PROJECT_DIR="."
-          else
-            PROJECT_DIR=$(find . -name "gradlew" -type f | head -n 1 | xargs dirname)
-          fi
+      - name: Build Debug APK
+        run: |
+          cd android-project
+          ./gradlew assembleDebug --stacktrace --info
 
-          echo "Building from: $PROJECT_DIR"
-          cd "$PROJECT_DIR"
-
-          # Make gradlew executable and build
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+      - name: List APK output
+        run: |
+          find android-project -name "*.apk" -type f
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: AIDEL-TV-APK
-          path: android-project/**/build/outputs/apk/debug/*.apk
+          path: android-project/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
