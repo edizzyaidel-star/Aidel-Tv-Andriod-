@@ -17,7 +17,7 @@ jobs:
       - name: Extract Android project
         run: |
           mkdir -p android-project
-          unzip -o AIDEL-TV-Android-Project.zip -d android-project
+          unzip -o AIDEL-TV-Android-Project-1.zip -d android-project
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -30,8 +30,22 @@ jobs:
 
       - name: Build APK
         run: |
+          # Go into the extracted project
           cd android-project
-          gradle assembleDebug
+
+          # Find the real project root (in case the zip has a subfolder)
+          if [ -f "gradlew" ]; then
+            PROJECT_DIR="."
+          else
+            PROJECT_DIR=$(find . -name "gradlew" -type f | head -n 1 | xargs dirname)
+          fi
+
+          echo "Building from: $PROJECT_DIR"
+          cd "$PROJECT_DIR"
+
+          # Make gradlew executable and build
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
